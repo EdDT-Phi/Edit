@@ -1,4 +1,4 @@
-##ABOUT
+##ABOUT<h1>
 
 Edit is a scripting language in progress. Use EditDemo.java to test.
 
