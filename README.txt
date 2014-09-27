@@ -1,3 +1,5 @@
+**ABOUT**
+
 Edit is a scripting language in progress. Use EditDemo.java to test.
 
 This is currently the extent of it's functionality:
