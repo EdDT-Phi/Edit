@@ -2,45 +2,45 @@
 
 Edit is a scripting language in progress. Use EditDemo.java to test.
 
+## INPUT
+
 This is currently the extent of it's functionality:
 
-print true and false
-print true or false
-print true xand false
-print true xor false
-print not true
+`print true and false`
+`print true or false`
+ `print true xand false``
+` print true xor false`
+` print not true `
+`
+` print`
 
-print
+` print "This is a" , "comma."`
+ `print "This is a" ; "semi-colon."`
 
-print "This is a" , "comma."
-print "This is a" ; "semi-colon."
+` print`
 
-print
+`print 2 + 2 * -2`
+`print 2 - 2 / 2`
+`print 2 ^ 3 % 3`
+ `print "hello" + " " +"world"`
+` print "hello", "world"`
+` print "random 5:" , 5`
 
-print 2 + 2 * -2
-print 2 - 2 / 2
-print 2 ^ 3 % 3
-print "hello" + " " +"world"
-print "hello", "world"
-print "random 5:" , 5
+` print`
 
-print
+` print 1 + 1 > 2 + 2 or false`
+` print true and 2 * 1 < 2 + 2`
+` print 4 / 2 <= 2 + 2 and true`
+` print false or 2 ^ 1 >= 2 + 2`
+` print 5 % 3 == 2 + 2 or false`
 
-print 1 + 1 > 2 + 2 or false
-print true and 2 * 1 < 2 + 2
-print 4 / 2 <= 2 + 2 and true
-print false or 2 ^ 1 >= 2 + 2
-print 5 % 3 == 2 + 2 or false
+` print`
 
-print
+ print 2 == 2
+ print 2 <= 2
+ print 2 >= 2 
 
-print 2 == 2
-print 2 <= 2
-print 2 >= 2
-
-
-
-Output:
+## OUTPUT
 
 false
 true
