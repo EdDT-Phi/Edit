@@ -1,0 +1,25 @@
+false
+true
+false
+true
+true
+
+This is a comma.
+This is a       semi-colon.
+
+-2.0
+1.0
+2.0
+hello world
+hello world
+random 5: 5.0
+
+false
+true
+true
+false
+false
+
+true
+true
+true
