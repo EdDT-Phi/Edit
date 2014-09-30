@@ -1,0 +1,42 @@
+print "this tests the loops"
+
+print
+
+x = 4
+
+while x < 0 do
+	print x
+	x = x - 1
+end
+
+print
+
+for i = 0, i < 2, i + 1 do
+	for j = 0, j < 2, j + 1 do
+		print i == 0 or j == 0
+	end
+end
+
+print
+
+for i = 0, i > 0, i - 1 do
+	for j = 0, j < 2, j + 1 do
+		print i == 0 and j == 0
+	end
+end
+
+print
+
+for i = 0, i < 2, i + 1 do
+	for j = 0, j < 2, j + 1 do
+		print i == 0 xand j == 0
+	end
+end
+
+print
+
+for i = 0, i < 2, i + 1 do
+	for j = 0, j < 2, j + 1 do
+		print i == 0 xor j == 0
+	end
+end

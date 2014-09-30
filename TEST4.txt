@@ -1,0 +1,15 @@
+print "this tests the input method"
+
+input "Dafuq? ", x
+
+print "You inputed:", x
+
+input x
+
+print "You inputed:", x
+
+input y
+
+print "You inputed:", y
+
+print "Testing bool:", x and y
