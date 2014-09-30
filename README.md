@@ -1,3 +1,12 @@
+## ABOUT
+
+Edit is a scripting language in progress. Use EditDemo.java to test.
+
+## INPUT
+
+This is currently the extent of it's functionality:
+
+```
 print "this tests the evaluator"
 
 x = 6
@@ -52,3 +61,38 @@ else
 		x = x + 1
 	end
 end
+```
+
+## OUTPUT
+
+```
+this tests the evaluator
+This will print
+false
+true
+false
+true
+false
+
+This is a comma.
+This is a       semi-colon.
+
+Pick a val for x: 5
+
+-8.0
+-0.5
+6.0
+hello world
+
+false
+true
+true
+false
+false
+
+0.0
+1.0
+2.0
+3.0
+4.0
+```
