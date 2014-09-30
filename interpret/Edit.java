@@ -15,8 +15,32 @@ class Edit {
 
 	final int MAX_PROG_SIZE = 100000;
 
-	final boolean DEBUG = false;
+	boolean debug = true;
 	final boolean DEBUG_E = false;
+
+	private void debug(String s) {
+		if (debug) {
+			if (commands != null) {
+				for (int i = 0; i < commands.size(); i++)
+					System.out.print("\t");
+			}
+			System.out.println("> " + s);
+			System.out.println();
+		}
+	}
+
+	private void debug(String[] strs) {
+		if (debug) {
+			String str = "";
+			if (commands != null) {
+				for (int i = 0; i < commands.size(); i++)
+					str += "\t";
+			}
+			for (String s : strs)
+				System.out.println(str + s);
+			System.out.println();
+		}
+	}
 
 	// Item types
 	final int NONE = 0; // Don't know
@@ -30,7 +54,7 @@ class Edit {
 	final int STRING = 6; // If quoted
 	final int NUMBER = 7; // Well...
 	final int BOOLEAN = 8; // Keeps as string
-	final int VOID = 9; // Only for function
+	// final int VOID = 9; // Only for function
 
 	// Internal representation of Edit commands
 	final int UNKNCOM = 0; // Don't Know
@@ -40,12 +64,13 @@ class Edit {
 	final int THEN = 4; // Expected after If
 	final int END = 5; // Ends some commands
 	final int DO = 6; // Expected after while
+	final int ELSE = 7; // the else to the if
 
 	// End is expected after these
-	final int IF = 7; // Start If
-	final int FOR = 8; // Start For
-	final int WHILE = 9; // Start While
-	final int FUNCTION = 10; // Creates new Functions
+	final int IF = 8; // Start If
+	final int FOR = 9; // Start For
+	final int WHILE = 10; // Start While
+	final int FUNCTION = 11; // Creates new Functions
 
 	// Errors
 	final int SYNTAX = 0; // Unexpected stuff
@@ -60,16 +85,17 @@ class Edit {
 	final int ENDEXPECTED = 9; // Reaches end of program without end
 	final int THENEXPECTED = 10; // no then after if
 	final int MISSQUOTE = 11; // strings missing a quote
-	final int UNKFUNCTION = 12; // Unknown function
-	final int INVALIDEXP = 13; // Invalid Expression
-	final int UNEXPITEM = 14;
+	final int DOEXPECTED = 12;
+	final int UNKFUNCTION = 13; // Unknown function
+	final int INVALIDEXP = 14; // Invalid Expression
+	final int UNEXPITEM = 15;
 
 	final int FILENOTFOUND = 16; // can't find file
 	final int INPUTIOERROR = 17; // Input that fails
 	final int EXPERR = 18; // for if, while and for
-	final int FILEIOERROR = 15; // can't load file
+	final int FILEIOERROR = 19; // can't load file
 
-	final int UNKNOWN = 19;
+	final int UNKNOWN = 20;
 
 	// Codes for operators such as <=
 	final char LE = 0; // <=
@@ -89,27 +115,70 @@ class Edit {
 	final char bOpsId[] = { AND, OR, NOT, XOR, XAND };
 	final String bOps[] = { "and", "or", "not", "xor", "xand" };
 
-	String[] commTable = { "", "print", "input", "then", "return", "end", "do",
-			"if", "for", "while", "function" };
+	String[] commTable = { "", "print", "input", "return", "then", "end", "do",
+			"else", "if", "for", "while", "function" };
 
-	class ForInfo {
-		String var;
-		double endVal;
-		int loopLoc;
-	}
+	class Command {
+		int loc, comm = 0, line;
 
-	class Function {
-		String name;
-		int functLoc;
-
-		public Function(String n, int c) {
-			name = n;
-			functLoc = c;
+		public String toString() {
+			return commTable[comm];
 		}
 	}
 
-	private Stack<ForInfo> forStack; // nested loops
-	private Stack<Function> functStack; // recursive functions? TODO
+	class ForLoop extends Command {
+		String vName;
+		int expLoc, itLoc;
+
+		public ForLoop(String n, int exp, int it, int lo, int lin) {
+			comm = FOR;
+			vName = n;
+			expLoc = exp;
+			itLoc = it;
+			loc = lo;
+			line = lin;
+		}
+
+		public ForLoop() {
+			comm = FOR;
+		}
+	}
+
+	class WhileLoop extends Command {
+		int expLoc, line;
+
+		public WhileLoop(int exp, int lo, int lin) {
+			comm = WHILE;
+			expLoc = exp;
+			loc = lo;
+			line = lin;
+		}
+
+		public WhileLoop() {
+			comm = WHILE;
+		}
+	}
+
+	class Function extends Command {
+		String name;
+
+		public Function(String n, int c) {
+			comm = FUNCTION;
+			name = n;
+			loc = c;
+		}
+	}
+
+	class IfStat extends Command {
+		boolean done;
+
+		public IfStat(boolean d) {
+			comm = IF;
+			done = d;
+		}
+	}
+
+	private Stack<Command> commands; // All loops and commands
 
 	private TreeMap<String, Object> vars; // holds all vars
 	private ArrayList<Function> functs; // holds all functions
@@ -141,6 +210,7 @@ class Edit {
 	// Load a program
 	public int loadProgram(char[] p, String progname)
 			throws InterpreterException {
+		debug("Loading program...");
 
 		int size = 0;
 
@@ -166,14 +236,16 @@ class Edit {
 	}
 
 	// Execute the program
-	public void run() throws InterpreterException {
+	public void run(boolean d) throws InterpreterException {
+		debug("Running program...");
+
+		debug = d;
 
 		// Initialize to run a new program
 		vars = new TreeMap<String, Object>();
 		functs = new ArrayList<Function>();
 
-		forStack = new Stack<ForInfo>();
-		functStack = new Stack<Function>(); // TODO
+		commands = new Stack<Command>();
 
 		progIdx = 0;
 		progLine = 1;
@@ -184,6 +256,7 @@ class Edit {
 
 	// Let's go! (Runs code)
 	private void runCode() throws InterpreterException {
+		debug("Starting program...");
 
 		// Runs until
 		while (nextItem()) {
@@ -192,9 +265,7 @@ class Edit {
 			if (itemType == VARIABLE) {
 				assignVar();
 			} else { // Start of line, must be command or function
-				if (DEBUG)
-					System.out.println("\n\tCommand:" + commType);
-
+				debug("> Command:" + commType);
 				switch (commType) {
 				case PRINT:
 					print();
@@ -220,56 +291,24 @@ class Edit {
 				case FUNCTION:
 					execFunction();
 					break;
+				case ELSE:
+					execElse();
+					break;
 				}
 
-				if (DEBUG)
-					System.out.println("\n\tDone with command");
+				debug("> Done with command");
 			}
 
 			// All functions end on their line
 			if (itemType != EOL && itemType != EOP) {
 				handleErr(UNEXPITEM);
 			}
-			progLine++;
 		}
-	}
-
-	private void assignVar() throws InterpreterException {
-		String var;
-
-		// get the variable name
-		var = item;
-
-		if (!Character.isLetter(var.charAt(0))) {
-			handleErr(NOTAVAR);
-			return;
-		}
-
-		// get equal sign
-		nextItem();
-		if (!item.equals("=")) {
-			handleErr(EQUALEXPECTED);
-			return;
-		}
-
-		nextItem();
-
-		// check if next is number or string
-
-		vars.put(var, evaluate());
-	}
-
-	// Value Type must be handled when calling!!
-	private Object getVarVal(String vname) throws InterpreterException {
-		if (!Character.isLetter(vname.charAt(0))) {
-			handleErr(NOTAVAR);
-			return 0;
-		}
-		return vars.get(vname); // return Object
 	}
 
 	// simple print command
 	private void print() throws InterpreterException {
+		debug("Print");
 
 		String lastDelim = "";
 
@@ -293,92 +332,9 @@ class Edit {
 		System.out.println();
 	}
 
-	private void execFunction() throws InterpreterException {
-		// TODO
-	}
-
-	private void execReturn() {
-		// TODO Auto-generated method stub
-	}
-
-	private void execWhile() {
-		// TODO Auto-generated method stub
-	}
-
-	private void endComm() {
-		// TODO
-	}
-
-	private void execIf() throws InterpreterException {
-		boolean result;
-
-		try {
-			result = (boolean) evaluate();
-		} catch (ClassCastException exc) {
-			handleErr(NOTABOOL);
-			return;
-		}
-
-		if (result) { // Execute the If
-			nextItem(); // Throw away Then
-			if (itemType != THEN) {
-				handleErr(THENEXPECTED);
-				return;
-			}
-		} else {
-			nextEnd(); // Skip this If
-		}
-	}
-
-	// for loops
-	private void execFor() throws InterpreterException {
-		ForInfo newFor = new ForInfo();
-		double value;
-		String vname;
-
-		nextItem(); // control variable
-		vname = item;
-
-		if (!Character.isLetter(vname.charAt(0))) {
-			handleErr(NOTAVAR);
-			return;
-		}
-
-		nextItem(); // =
-		if (!item.equals("=")) {
-			handleErr(EQUALEXPECTED);
-			return;
-		}
-
-		try {
-			value = (double) evaluate(); // initial value
-		} catch (ClassCastException exc) {
-			handleErr(EXPERR);
-			return;
-		}
-
-		vars.put(vname, value); // add value to map
-
-		try {
-			newFor.endVal = (double) evaluate(); // end value
-		} catch (ClassCastException exc) {
-			handleErr(EXPERR);
-			return;
-		}
-
-		// can run once
-		if (value >= newFor.endVal) {
-			newFor.loopLoc = progIdx;
-			forStack.push(newFor); // add to stack
-		} else {
-			nextEnd(); // else skip it all
-		}
-	}
-
 	// Input stringsn that start with number = bad
 	private void input() throws InterpreterException {
-		String var;
-		double val = 0;
+		debug("Get Input");
 		String str = "";
 
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -404,51 +360,300 @@ class Edit {
 			return;
 		}
 
-		var = item;
-
 		try {
 			str = br.readLine();
 
-			if (isNumber(str.charAt(0))) { // If number, convert
-				try {
-					val = Double.parseDouble(str);
-					vars.put(var, val);
-				} catch (NumberFormatException exc) {// If error save as string
-					vars.put(var, str);
-				}
-			} else { // Not number, save as string
-				vars.put(var, str);
-			}
+			vars.put(item, str);
+
 		} catch (IOException e) { // Idk what happend
 			handleErr(INPUTIOERROR);
 			return;
+		}
+		nextItem();
+	}
+
+	private void execFunction() throws InterpreterException {
+		debug("Function");
+		// TODO
+	}
+
+	private void execReturn() {
+		debug("Return");
+		// TODO Auto-generated method stub
+	}
+
+	private void execIf() throws InterpreterException {
+		debug("If statement");
+		boolean result;
+
+		nextItem();
+
+		try {
+			result = (boolean) evaluate();
+		} catch (ClassCastException exc) {
+			handleErr(NOTABOOL);
+			return;
+		}
+
+		commands.push(new IfStat(result));
+
+		if (result) { // Execute the If // Throw away Then
+			if (commType != THEN) {
+				handleErr(THENEXPECTED);
+				return;
+			}
+			nextItem();
+
+		} else
+			nextEnd(); // Skip this If
+	}
+
+	private void execElse() throws InterpreterException {
+		debug("Else statement");
+		Command c = commands.peek();
+
+		if (c.comm != IF) {
+			handleErr(SYNTAX);
+			return;
+		}
+
+		if (!((IfStat) c).done) {
+			nextItem();
+
+			if (commType == IF) {
+
+				nextItem();
+
+				boolean result;
+
+				try {
+					result = (boolean) evaluate();
+				} catch (ClassCastException exc) {
+					handleErr(NOTABOOL);
+					return;
+				}
+
+				if (result) { // Execute the If
+					((IfStat) c).done = true;
+
+					if (commType != THEN) {
+						handleErr(THENEXPECTED);
+						return;
+					}
+					nextItem();
+
+				} else
+					nextEnd(); // Skip this If
+				return;
+			}
+		} else
+			nextEnd();
+	}
+
+	// for loops
+	private void execFor() throws InterpreterException {
+		debug("For Loop");
+		double i;
+		int expLoc, ittLoc, loc;
+		String vname;
+
+		nextItem(); // control variable
+		vname = item;
+
+		nextItem(); // =
+		if (item.equals("=")) {
+			nextItem();
+			try {
+				i = (double) evaluate(); // initial value
+			} catch (ClassCastException exc) {
+				handleErr(EXPERR);
+				return;
+			}
+
+			vars.put(vname, i); // add value to map
+		}
+
+		// evaluate should end with ,
+		if (!item.equals(",")) {
+			handleErr(SYNTAX);
+			return;
+		}
+
+		expLoc = progIdx; // expression would be next
+		nextItem();
+
+		// can run once && skip to itt
+		try {
+			if (!(boolean) evaluate()) {
+				commands.push(new ForLoop());
+				nextEnd(); // else skip it all
+				return;
+			}
+		} catch (ClassCastException exc) {
+			handleErr(NOTABOOL);
+		}
+
+		// evaluate ends in ,
+		if (!item.equals(",")) {
+			handleErr(SYNTAX);
+			return;
+		}
+
+		ittLoc = progIdx; // itterative would be next
+		nextItem();
+
+		evaluate();
+
+		// evaluate ends in do
+		if (commType != DO) {
+			handleErr(DOEXPECTED);
+			return;
+		}
+
+		loc = progIdx;
+		nextItem(); // should be EOL
+
+		ForLoop newfor;
+
+		try { // end value
+			newfor = new ForLoop(vname, expLoc, ittLoc, loc, progLine);
+		} catch (ClassCastException exc) {
+			handleErr(EXPERR);
+			return;
+		}
+
+		commands.push(newfor); // add to stack
+	}
+
+	private void execWhile() throws InterpreterException {
+		debug("While Loop");
+		int expLoc;
+
+		expLoc = progIdx;
+
+		nextItem(); // expression
+
+		// can run once
+		try {
+			if (!(boolean) evaluate()) {
+				commands.push(new WhileLoop());
+				nextEnd(); // else skip it all
+				return;
+			}
+		} catch (ClassCastException exc) {
+			handleErr(NOTABOOL);
+		}
+
+		// evaluate ends in do
+		if (commType != DO) {
+			handleErr(DOEXPECTED);
+			return;
+		}
+
+		int loc = progIdx;
+		nextItem(); // should be EOL
+
+		WhileLoop loop;
+
+		try { // end value
+			loop = new WhileLoop(expLoc, loc, progLine);
+		} catch (ClassCastException exc) {
+			handleErr(EXPERR);
+			return;
+		}
+
+		commands.push(loop); // add to stack
+	}
+
+	private void endComm() throws InterpreterException {
+		debug("End Command");
+		Command p = commands.peek();
+		if (p == null) {
+			handleErr(SYNTAX);
+		}
+		switch (p.comm) {
+		case IF:
+			nextItem();
+			commands.pop();
+			return;
+		case FOR:
+			int loc = progIdx;
+			ForLoop f = (ForLoop) p;
+			if (f.loc > 0) {
+				progIdx = f.itLoc;
+				nextItem();
+				vars.put(f.vName, (double) evaluate());
+				progIdx = f.expLoc;
+				nextItem();
+
+				if ((boolean) evaluate()) {
+					progIdx = f.loc;
+					progLine = f.line;
+				} else {
+					commands.pop();
+					progIdx = loc;
+				}
+				nextItem();
+				return;
+			} else {
+				commands.pop();
+				progIdx = loc;
+				nextItem();
+				return;
+			}
+		case WHILE:
+			loc = progIdx;
+			WhileLoop w = (WhileLoop) p;
+			if (w.loc > 0) {
+				progIdx = w.expLoc;
+				nextItem(); // exp
+
+				if ((boolean) evaluate()) {
+					progIdx = w.loc;
+					progLine = w.line;
+				} else {
+					commands.pop();
+					progIdx = loc;
+				}
+				nextItem();
+				return;
+			} else {
+				commands.pop();
+				progIdx = loc;
+				nextItem();
+				return;
+			}
 		}
 	}
 
 	// Get next End, used to skip functions
 	private void nextEnd() throws InterpreterException {
-
-		int count = 0;
-		while (nextItem() && itemType != END && count > 0) {
-			if (itemType > 6) // Loops and functions and stuff
+		debug("Next end");
+		int count = 1;
+		while (count > 0 && nextItem()) {
+			if (commType > 7) { // Loops and functions and stuff
 				count++;
+				debug("Find End: " + count);
+			}
+			if (commType == END) {
+				count--;
+				debug("Find End: " + count);
+			}
+			if (commType == ELSE)
+				if (count == 1) {
+					execElse();
+					return;
+				} else if (nextItem() && commType == IF) {
+					debug("Find End: " + count);
+				}
 		}
 
-		if (itemType != END) {
+		if (commType != END) {
 			handleErr(ENDEXPECTED);
 			return;
 		}
-	}
 
-	// Obtain next item, returns false if EOP
-	private boolean nextItem() throws InterpreterException {
-		boolean result = getNext();
-		if (DEBUG) {
-			System.out.println("\nNew item");
-			System.out.println("Item: " + item);
-			System.out.println("ItemType: " + itemType);
-		}
-		return result;
+		endComm();
 	}
 
 	//
@@ -458,6 +663,22 @@ class Edit {
 	//
 	//
 	//
+
+	// Obtain next item, returns false if EOP
+	private boolean nextItem() throws InterpreterException {
+		boolean result = getNext();
+		debug(new String[] { "Item: " + item, "CommStack: " + commands });
+		// "ItemType: " + itemType, "CommType: " + commType,
+
+		// try {
+		// if (debug)
+		// Thread.sleep(500);
+		// } catch (InterruptedException e) {
+		// e.printStackTrace();
+		// }
+
+		return result;
+	}
 
 	private boolean getNext() throws InterpreterException {
 
@@ -474,7 +695,7 @@ class Edit {
 		// Check for end of program.
 		if (progIdx >= prog.length) {
 			itemType = EOP;
-			item = "\r\n";
+			item = " ";
 			return false;
 		}
 
@@ -482,7 +703,8 @@ class Edit {
 		if (prog[progIdx] == '\r') {
 			progIdx += 2;
 			itemType = EOL;
-			item = "\r\n";
+			item = " ";
+			progLine++;
 			return true;
 		}
 
@@ -577,6 +799,354 @@ class Edit {
 	//
 	//
 	//
+	// ***************************EVALUATOR*******************************
+	//
+	//
+	//
+
+	// Parser entry point.
+	private Object evaluate() throws InterpreterException {
+		debug("Evaluate");
+		Object result;
+
+		if (item.equals(EOL) || item.equals(EOP))
+			handleErr(EXPERR); // no expression present
+
+		// Parse and evaluate the expression.
+		result = evalExp1();
+
+		return result;
+	}
+
+	// Process operators.
+	private Object evalExp1() throws InterpreterException {
+		Object result, pResult;
+		double l_temp, r_temp;
+		boolean lb, rb;
+		String ls, rs;
+		char op;
+		String str;
+
+		// See if first part is expression
+		result = evalExp2();
+
+		op = item.charAt(0);
+		str = item.toLowerCase();
+
+		while (isRelOp(op) || isBoolOp(str)) {
+			nextItem(); // get more stuff
+
+			if (isNumber(result)) {
+				pResult = evalExp2(); // second expression
+				if (isRelOp(op)) {
+					if (isNumber(result)) {
+						l_temp = (double) result;
+						r_temp = (double) pResult;
+
+						switch (op) { // perform the relational operation
+						case '<':
+							result = (l_temp < r_temp);
+							break;
+						case LE:
+							result = (l_temp <= r_temp);
+							break;
+						case '>':
+							result = (l_temp > r_temp);
+							break;
+						case GE:
+							result = (l_temp >= r_temp);
+							break;
+						case EQ:
+							result = (l_temp == r_temp);
+							break;
+						}
+					} else {
+						handleErr(NOTANUMB);
+						result = null;
+					}
+				}
+			} else if (isBoolean(result)) {
+				pResult = evalExp1();
+				if (isBoolOp(str)) {
+					if (isBoolean(result)) {
+
+						lb = (boolean) result;
+						rb = (boolean) pResult;
+						switch (str) {
+						case "and":
+							result = (lb && rb);
+							break;
+						case "or":
+							result = (lb || rb);
+							break;
+						case "xor":
+							result = (lb ^ rb);
+							break;
+						case "xand":
+							result = (lb == rb);
+							break;
+						}
+					} else {
+						handleErr(NOTABOOL);
+						result = null;
+					}
+				}
+			} else {
+				if (isRelOp(op)) {
+					pResult = evalExp2();
+					if (!isNumber(result)) {
+						// second expression is String
+						rs = (String) pResult;
+						ls = (String) result;
+						double test = (ls.compareTo(rs));
+
+						switch (op) { // perform the relational operation
+						case '<':
+							result = test < 0;
+							break;
+						case LE:
+							result = test <= 0;
+							break;
+						case '>':
+							result = test > 0;
+							break;
+						case GE:
+							result = test >= 0;
+							break;
+						case EQ:
+							result = test == 0;
+							break;
+						}
+					} else {
+						handleErr(NOTASTR);
+						result = null;
+					}
+				}
+			}
+			op = item.charAt(0);
+			str = item.toLowerCase();
+		}
+
+		if (DEBUG_E)
+			debug("1: " + result);
+
+		return result;
+	}
+
+	// Add or subtract two terms.
+	private Object evalExp2() throws InterpreterException {
+		char op;
+		Object result;
+		Object pResult;
+
+		result = evalExp3();
+
+		while ((op = item.charAt(0)) == '+' || op == '-') {
+			nextItem(); // get more stuff
+			pResult = evalExp3();
+
+			if (isNumber(result)) {// number
+				if (isNumber(pResult)) {// also number
+					switch (op) {
+					case '-':
+						result = (double) result - (double) pResult;
+						break;
+					case '+':
+						result = (double) result + (double) pResult;
+						break;
+					}
+				} else {
+					handleErr(NOTANUMB);
+					return null;
+				}
+			} else if (!isBoolean(result)) {// string
+				if (!isNumber(pResult) && !isBoolean(pResult)) {// also string
+					switch (op) {
+					case '-':
+						handleErr(INVALIDEXP);
+					case '+':
+						result = (String) result + (String) pResult;
+						break;
+					}
+				} else {
+					handleErr(NOTASTR);
+					return null;
+				}
+			}
+		}
+		if (DEBUG_E)
+			debug("2: " + result);
+		return result;
+	}
+
+	// Multiply or divide two factors.
+	private Object evalExp3() throws InterpreterException {
+		char op;
+		Object result;
+		Object partialResult;
+
+		result = evalExp4();
+
+		while ((op = item.charAt(0)) == '*' || op == '/' || op == '%') {
+			if (!isNumber(result)) { // must be number or invalid operator
+				handleErr(NOTANUMB);
+				return null;
+			}
+
+			nextItem();
+			partialResult = evalExp4();
+
+			if (!isNumber(partialResult)) { // also must be number
+				handleErr(NOTANUMB);
+				return null;
+			}
+
+			switch (op) {
+			case '*':
+				result = (double) result * (double) partialResult;
+				break;
+			case '/':
+				if ((double) partialResult == 0.0)
+					handleErr(DIVBYZERO);
+				result = (double) result / (double) partialResult;
+				break;
+			case '%':
+				if ((double) partialResult == 0.0)
+					handleErr(DIVBYZERO);
+				result = (double) result % (double) partialResult;
+				break;
+			}
+		}
+		if (DEBUG_E)
+			debug("3: " + result);
+		return result;
+	}
+
+	// Process an exponent.
+	private Object evalExp4() throws InterpreterException {
+		Object result;
+		Object partialResult;
+		double ex;
+		double t;
+
+		result = evalExp5();
+
+		if (item.equals("^")) {
+			if (!isNumber(result)) { // must be number or invalid operator
+				handleErr(NOTANUMB);
+				return null;
+			}
+
+			nextItem();
+			partialResult = evalExp4();
+
+			if (!isNumber(partialResult)) { // must also be number
+				handleErr(NOTANUMB);
+				return null;
+			}
+
+			ex = (double) result;
+			if ((double) partialResult == 0.0) {
+				result = 1.0;
+			} else
+				for (t = (double) partialResult - 1; t > 0; t--)
+					result = (double) result * ex;
+		}
+		if (DEBUG_E)
+			debug("4: " + result);
+		return result;
+	}
+
+	// Evaluate a unary + or - and NOT
+	private Object evalExp5() throws InterpreterException {
+		Object result;
+		String op = item;
+
+		if (item.equals("-") || item.toLowerCase().equals(bOps[NOT])) {
+
+			nextItem();
+			result = evalExp6();
+
+			if (isNumber(result)) {
+				// is number
+				if (op.equals("-"))
+					result = -(double) result;
+				else {
+					handleErr(NOTABOOL);
+					return null;
+				}
+			} else if (isBoolean(result)) {
+				// is boolean
+				if (op.toLowerCase().equals(bOps[NOT]))
+					result = !(boolean) result;
+				else {
+					handleErr(NOTANUMB);
+					return null;
+				}
+			} else {
+				// is string
+				handleErr(INVALIDEXP);
+				return null;
+			}
+		} else {
+			result = evalExp6();
+		}
+		if (DEBUG_E)
+			debug("5: " + result);
+		return result;
+	}
+
+	// Process a parenthesized expression.
+	private Object evalExp6() throws InterpreterException {
+		Object result;
+
+		if (item.equals("(")) {
+			nextItem();
+			result = evalExp1();
+			if (!item.equals(")"))
+				handleErr(UNBALPARENS);
+			nextItem();
+			return result;
+		} else {
+			result = atom();
+			nextItem();
+		}
+		if (DEBUG_E)
+			debug("6: " + result);
+		return result;
+	}
+
+	// Get the value of a number or variable.
+	private Object atom() throws InterpreterException {
+		switch (itemType) {
+		case NUMBER:
+			try {
+				return Double.parseDouble(item);
+			} catch (NumberFormatException exc) {
+				handleErr(NOTANUMB);
+			}
+		case VARIABLE:
+			Object o = getVarVal(item);
+			if (isNumber(o)) {
+				if (DEBUG_E)
+					debug("atom: " + o.toString());
+				return Double.parseDouble(o.toString());
+			}
+			if (isBoolean(o))
+				return toBoolean((String) o);
+			return o;
+		case BOOLEAN:
+			return toBoolean(item);
+		case STRING:
+			return item;
+		}
+		handleErr(SYNTAX);
+		return null;
+	}
+
+	//
+	//
+	//
 	// **************** Background Methods***********************************
 	//
 	//
@@ -660,341 +1230,41 @@ class Edit {
 		return UNKNCOM; // unknown keyword
 	}
 
-	//
-	//
-	//
-	// ***************************EVALUATOR*******************************
-	//
-	//
-	//
+	private void assignVar() throws InterpreterException {
+		debug("Assign variable");
+		String var;
 
-	// Parser entry point.
-	private Object evaluate() throws InterpreterException {
-		Object result;
+		// get the variable name
+		var = item;
 
-		if (item.equals(EOL) || item.equals(EOP))
-			handleErr(EXPERR); // no expression present
-
-		// Parse and evaluate the expression.
-		result = evalExp1();
-
-		return result;
-	}
-
-	// Process operators.
-	private Object evalExp1() throws InterpreterException {
-		Object result, pResult;
-		double l_temp, r_temp;
-		boolean lb, rb;
-		String ls, rs;
-		char op;
-		String str;
-
-		// See if first part is expression
-		result = evalExp2();
-
-		op = item.charAt(0);
-		str = item.toLowerCase();
-
-		while (isRelOp(op) || isBoolOp(str)) {
-			nextItem(); // get more stuff
-			pResult = evalExp1(); // second expression
-
-			if (isNumber(result)) {
-				if (isRelOp(op)) {
-					if (isNumber(result)) {
-						l_temp = (double) result;
-						r_temp = (double) pResult;
-
-						switch (op) { // perform the relational operation
-						case '<':
-							result = (l_temp < r_temp);
-							break;
-						case LE:
-							result = (l_temp <= r_temp);
-							break;
-						case '>':
-							result = (l_temp > r_temp);
-							break;
-						case GE:
-							result = (l_temp >= r_temp);
-							break;
-						case EQ:
-							result = (l_temp == r_temp);
-							break;
-						}
-					} else {
-						handleErr(NOTANUMB);
-						result = null;
-					}
-				}
-			} else if (isBoolean(result)) {
-				if (isBoolOp(str)) {
-					if (isBoolean(result)) {
-
-						lb = (boolean) result;
-						rb = (boolean) pResult;
-						switch (str) {
-						case "and":
-							result = (lb && rb);
-							break;
-						case "or":
-							result = (lb || rb);
-							break;
-						case "xor":
-							result = (lb ^ rb);
-							break;
-						case "xand":
-							result = (lb == rb);
-							break;
-						}
-					} else {
-						handleErr(NOTABOOL);
-						result = null;
-					}
-				}
-			} else {
-				if (isRelOp(op)) {
-					if (!isNumber(result)) {
-						// second expression is String
-						rs = (String) pResult;
-						ls = (String) result;
-						double test = (ls.compareTo(rs));
-
-						switch (op) { // perform the relational operation
-						case '<':
-							result = test < 0;
-							break;
-						case LE:
-							result = test <= 0;
-							break;
-						case '>':
-							result = test > 0;
-							break;
-						case GE:
-							result = test >= 0;
-							break;
-						case EQ:
-							result = test == 0;
-							break;
-						}
-					} else {
-						handleErr(NOTASTR);
-						result = null;
-					}
-				}
-			}
-			op = item.charAt(0);
-			str = item.toLowerCase();
+		if (!Character.isLetter(var.charAt(0))) {
+			handleErr(NOTAVAR);
+			return;
 		}
 
-		if (DEBUG_E)
-			System.out.println("1: " + result);
+		// get equal sign
+		nextItem();
+		if (!item.equals("=")) {
+			handleErr(EQUALEXPECTED);
+			return;
+		}
 
-		return result;
+		nextItem();
+
+		// check if next is number or string
+
+		vars.put(var, evaluate());
 	}
 
-	// Add or subtract two terms.
-	private Object evalExp2() throws InterpreterException {
-		char op;
-		Object result;
-		Object pResult;
-
-		result = evalExp3();
-
-		while ((op = item.charAt(0)) == '+' || op == '-') {
-			nextItem(); // get more stuff
-			pResult = evalExp3();
-
-			if (isNumber(result)) {// number
-				if (isNumber(pResult)) {// also number
-					switch (op) {
-					case '-':
-						result = (double) result - (double) pResult;
-						break;
-					case '+':
-						result = (double) result + (double) pResult;
-						break;
-					}
-				} else {
-					handleErr(NOTANUMB);
-					return null;
-				}
-			} else if (!isBoolean(result)) {// string
-				if (!isNumber(pResult) && !isBoolean(pResult)) {// also string
-					switch (op) {
-					case '-':
-						handleErr(INVALIDEXP);
-					case '+':
-						result = (String) result + (String) pResult;
-						break;
-					}
-				} else {
-					handleErr(NOTASTR);
-					return null;
-				}
-			}
+	// Value Type must be handled when calling!!
+	private Object getVarVal(String vname) throws InterpreterException {
+		if (!Character.isLetter(vname.charAt(0))) {
+			handleErr(NOTAVAR);
+			return 0;
 		}
-		if (DEBUG_E)
-			System.out.println("2: " + result);
-		return result;
-	}
 
-	// Multiply or divide two factors.
-	private Object evalExp3() throws InterpreterException {
-		char op;
-		Object result;
-		Object partialResult;
-
-		result = evalExp4();
-
-		while ((op = item.charAt(0)) == '*' || op == '/' || op == '%') {
-			if (!isNumber(result)) { // must be number or invalid operator
-				handleErr(NOTANUMB);
-				return null;
-			}
-
-			nextItem();
-			partialResult = evalExp4();
-
-			if (!isNumber(partialResult)) { // also must be number
-				handleErr(NOTANUMB);
-				return null;
-			}
-
-			switch (op) {
-			case '*':
-				result = (double) result * (double) partialResult;
-				break;
-			case '/':
-				if ((double) partialResult == 0.0)
-					handleErr(DIVBYZERO);
-				result = (double) result / (double) partialResult;
-				break;
-			case '%':
-				if ((double) partialResult == 0.0)
-					handleErr(DIVBYZERO);
-				result = (double) result % (double) partialResult;
-				break;
-			}
-		}
-		if (DEBUG_E)
-			System.out.println("3: " + result);
-		return result;
-	}
-
-	// Process an exponent.
-	private Object evalExp4() throws InterpreterException {
-		Object result;
-		Object partialResult;
-		double ex;
-		double t;
-
-		result = evalExp5();
-
-		if (item.equals("^")) {
-			if (!isNumber(result)) { // must be number or invalid operator
-				handleErr(NOTANUMB);
-				return null;
-			}
-
-			nextItem();
-			partialResult = evalExp4();
-
-			if (!isNumber(partialResult)) { // must also be number
-				handleErr(NOTANUMB);
-				return null;
-			}
-
-			ex = (double) result;
-			if ((double) partialResult == 0.0) {
-				result = 1.0;
-			} else
-				for (t = (double) partialResult - 1; t > 0; t--)
-					result = (double) result * ex;
-		}
-		if (DEBUG_E)
-			System.out.println("4: " + result);
-		return result;
-	}
-
-	// Evaluate a unary + or - and NOT
-	private Object evalExp5() throws InterpreterException {
-		Object result;
-		String op = item;
-
-		if (item.equals("-") || item.toLowerCase().equals(bOps[NOT])) {
-
-			nextItem();
-			result = evalExp6();
-
-			if (isNumber(result)) {
-				// is number
-				if (op.equals("-"))
-					result = -(double) result;
-				else {
-					handleErr(NOTABOOL);
-					return null;
-				}
-			} else if (isBoolean(result)) {
-				// is boolean
-				if (op.toLowerCase().equals(bOps[NOT]))
-					result = !(boolean) result;
-				else {
-					handleErr(NOTANUMB);
-					return null;
-				}
-			} else {
-				// is string
-				handleErr(INVALIDEXP);
-				return null;
-			}
-		} else {
-			result = evalExp6();
-		}
-		if (DEBUG_E)
-			System.out.println("5: " + result);
-		return result;
-	}
-
-	// Process a parenthesized expression.
-	private Object evalExp6() throws InterpreterException {
-		Object result;
-
-		if (item.equals("(")) {
-			nextItem();
-			result = evalExp2();
-			if (!item.equals(")"))
-				handleErr(UNBALPARENS);
-			nextItem();
-			return null;
-		} else {
-			result = atom();
-			nextItem();
-		}
-		if (DEBUG_E)
-			System.out.println("\n6: " + result);
-		return result;
-	}
-
-	// Get the value of a number or variable.
-	private Object atom() throws InterpreterException {
-		switch (itemType) {
-		case NUMBER:
-			try {
-				return Double.parseDouble(item);
-			} catch (NumberFormatException exc) {
-				handleErr(NOTANUMB);
-			}
-		case VARIABLE:
-			return getVarVal(item);
-		case BOOLEAN:
-			return toBoolean(item);
-		case STRING:
-			return item;
-		}
-		handleErr(SYNTAX);
-		return null;
+		debug("Get var: " + vars.get(vname));
+		return vars.get(vname); // return Object
 	}
 
 	//
@@ -1026,7 +1296,7 @@ class Edit {
 		err[SYNTAX] = "Syntax Error";
 		err[UNBALPARENS] = "(... or ...)";
 		err[DIVBYZERO] = "1/0";
-		err[EQUALEXPECTED] = "For variable assignment and if statements";
+		err[EQUALEXPECTED] = "Equal Expected";
 		err[NOTAVAR] = "For vars that have no value: assignments,loops";
 		err[NOTABOOL] = "Not a boolean";
 		err[NOTANUMB] = "Not a number";
@@ -1034,9 +1304,11 @@ class Edit {
 		err[DUPFUNCTION] = "Two functions with same name";
 		err[ENDEXPECTED] = "Reaches end of program without end";
 		err[THENEXPECTED] = "No then after if";
+		err[DOEXPECTED] = "No then after if";
 		err[MISSQUOTE] = "Strings missing a quote";
 		err[UNKFUNCTION] = "Unknown function";
 		err[INVALIDEXP] = "Invalid Expression";
+		err[UNEXPITEM] = "Unexpeced Item";
 		err[FILENOTFOUND] = "Can't find file";
 		err[INPUTIOERROR] = "Input that fails";
 		err[EXPERR] = "For if, while and for";
@@ -1045,6 +1317,6 @@ class Edit {
 
 		throw new InterpreterException(err[error] + ": " + progIdx
 				+ "\nLine number: " + progLine + "\nItem: " + item
-				+ "\nItem Type: " + itemType);
+				+ "\nItem Type: " + itemType + "\ncommType: " + commType);
 	}
 }
