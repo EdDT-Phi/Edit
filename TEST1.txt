@@ -1,13 +1,25 @@
+
+#This will be ignored
+
 print "this tests the evaluator"
+
+function ending(x) do
+	while x > 0 do
+		print "This will print at the end x times"
+		x = x - 1
+	end
+end
+
+print #This will be ignored
 
 x = 6
 
 if x < 4 then
 	print "This won't print"
 else if x == 5 then
-	print "This won't print either"
+	print "This won't print either" 
 else
-	print "This will print"
+	print "This will print" #This will be ignored
 end
 
 print true and false
@@ -52,3 +64,9 @@ else
 		x = x + 1
 	end
 end
+
+print
+
+ending(x)
+
+#This will be ignored

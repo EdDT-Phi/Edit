@@ -54,7 +54,7 @@ class Edit {
 	final int STRING = 6; // If quoted
 	final int NUMBER = 7; // Well...
 	final int BOOLEAN = 8; // Keeps as string
-	// final int VOID = 9; // Only for function
+	final int FUNCT = 9; // Only for function
 
 	// Internal representation of Edit commands
 	final int UNKNCOM = 0; // Don't Know
@@ -89,13 +89,28 @@ class Edit {
 	final int UNKFUNCTION = 13; // Unknown function
 	final int INVALIDEXP = 14; // Invalid Expression
 	final int UNEXPITEM = 15;
+	final int TOOMANYPARAMS = 16;
 
-	final int FILENOTFOUND = 16; // can't find file
-	final int INPUTIOERROR = 17; // Input that fails
-	final int EXPERR = 18; // for if, while and for
-	final int FILEIOERROR = 19; // can't load file
+	final int FILENOTFOUND = 17; // can't find file
+	final int INPUTIOERROR = 18; // Input that fails
+	final int EXPERR = 19; // for if, while and for
+	final int FILEIOERROR = 20; // can't load file
 
-	final int UNKNOWN = 20;
+	final int UNKNOWN = 21;
+
+	// Important stuff
+	private Stack<Command> commands; // All loops and commands
+
+	private Stack<TreeMap<String, Object>> vars; // holds all vars
+	private TreeMap<String, Function> functs; // holds all functions
+
+	private char[] prog; // holds all the program
+	private int progIdx; // current program index
+	private int progLine; // current program line
+
+	private String item; // the current word/char/number
+	private int itemType; // from the types
+	private int commType; // from the comms
 
 	// Codes for operators such as <=
 	final char LE = 0; // <=
@@ -160,12 +175,18 @@ class Edit {
 	}
 
 	class Function extends Command {
-		String name;
+		int backLoc;
+		ArrayList<String> params;
 
-		public Function(String n, int c) {
+		public Function(int l, int bLoc, ArrayList<String> pars) {
 			comm = FUNCTION;
-			name = n;
-			loc = c;
+			backLoc = bLoc;
+			loc = l;
+			params = pars;
+		}
+
+		public Function() {
+			comm = FUNCTION;
 		}
 	}
 
@@ -177,19 +198,6 @@ class Edit {
 			done = d;
 		}
 	}
-
-	private Stack<Command> commands; // All loops and commands
-
-	private TreeMap<String, Object> vars; // holds all vars
-	private ArrayList<Function> functs; // holds all functions
-
-	private char[] prog; // holds all the program
-	private int progIdx; // current program index
-	private int progLine; // current program line
-
-	private String item; // the current word/char/number
-	private int itemType; // from the types
-	private int commType; // from the comms
 
 	// Constructor for Edit
 	public Edit(String progname) throws InterpreterException {
@@ -242,8 +250,9 @@ class Edit {
 		debug = d;
 
 		// Initialize to run a new program
-		vars = new TreeMap<String, Object>();
-		functs = new ArrayList<Function>();
+		vars = new Stack<TreeMap<String, Object>>();
+		vars.push(new TreeMap<String, Object>());
+		functs = new TreeMap<String, Function>();
 
 		commands = new Stack<Command>();
 
@@ -262,9 +271,14 @@ class Edit {
 		while (nextItem()) {
 
 			// Not exisiting funct or var, so new var
-			if (itemType == VARIABLE) {
+			switch (itemType) {
+			case VARIABLE:
 				assignVar();
-			} else { // Start of line, must be command or function
+				break;
+			case FUNCT:
+				execFunct();
+				break;
+			case COMMAND:
 				debug("> Command:" + commType);
 				switch (commType) {
 				case PRINT:
@@ -289,7 +303,7 @@ class Edit {
 					execReturn();
 					break;
 				case FUNCTION:
-					execFunction();
+					newFunction();
 					break;
 				case ELSE:
 					execElse();
@@ -297,6 +311,7 @@ class Edit {
 				}
 
 				debug("> Done with command");
+				break;
 			}
 
 			// All functions end on their line
@@ -363,23 +378,13 @@ class Edit {
 		try {
 			str = br.readLine();
 
-			vars.put(item, str);
+			vars.peek().put(item, str);
 
-		} catch (IOException e) { // Idk what happend
+		} catch (IOException e) {
 			handleErr(INPUTIOERROR);
 			return;
 		}
 		nextItem();
-	}
-
-	private void execFunction() throws InterpreterException {
-		debug("Function");
-		// TODO
-	}
-
-	private void execReturn() {
-		debug("Return");
-		// TODO Auto-generated method stub
 	}
 
 	private void execIf() throws InterpreterException {
@@ -395,6 +400,7 @@ class Edit {
 			return;
 		}
 
+		vars.push(new TreeMap<String, Object>());
 		commands.push(new IfStat(result));
 
 		if (result) { // Execute the If // Throw away Then
@@ -470,7 +476,7 @@ class Edit {
 				return;
 			}
 
-			vars.put(vname, i); // add value to map
+			vars.peek().put(vname, i); // add value to map
 		}
 
 		// evaluate should end with ,
@@ -485,6 +491,7 @@ class Edit {
 		// can run once && skip to itt
 		try {
 			if (!(boolean) evaluate()) {
+				vars.push(new TreeMap<String, Object>());
 				commands.push(new ForLoop());
 				nextEnd(); // else skip it all
 				return;
@@ -522,6 +529,7 @@ class Edit {
 			return;
 		}
 
+		vars.push(new TreeMap<String, Object>());
 		commands.push(newfor); // add to stack
 	}
 
@@ -536,6 +544,7 @@ class Edit {
 		// can run once
 		try {
 			if (!(boolean) evaluate()) {
+				vars.push(new TreeMap<String, Object>());
 				commands.push(new WhileLoop());
 				nextEnd(); // else skip it all
 				return;
@@ -553,16 +562,117 @@ class Edit {
 		int loc = progIdx;
 		nextItem(); // should be EOL
 
-		WhileLoop loop;
+		WhileLoop loop = new WhileLoop(expLoc, loc, progLine);
 
-		try { // end value
-			loop = new WhileLoop(expLoc, loc, progLine);
-		} catch (ClassCastException exc) {
-			handleErr(EXPERR);
+		vars.push(new TreeMap<String, Object>());
+		commands.push(loop); // add to stack
+	}
+
+	private void newFunction() throws InterpreterException {
+		debug("New Function");
+
+		String fName;
+
+		nextItem(); // funct name
+
+		if (!(Character.isLetter(item.charAt(0)))) {
+			handleErr(NOTAVAR);
+		}
+
+		fName = item;
+
+		nextItem(); // should be "("
+
+		if (!item.equals("(")) {
+			handleErr(SYNTAX);
+		}
+
+		nextItem(); // should be ")" or params
+
+		ArrayList<String> params = new ArrayList<String>();
+
+		if (!item.equals(")")) {
+			if (Character.isLetter(item.charAt(0))) {
+				params.add(item);
+				while (nextItem() && item.equals(",")) {
+					nextItem();
+					params.add(item);
+				}
+				if (!item.equals(")")) {
+					handleErr(SYNTAX);
+				}
+
+			} else {
+				handleErr(NOTAVAR);
+				return;
+			}
+		}
+
+		nextItem(); // should be DO
+
+		if (!(commType == DO)) {
+			handleErr(SYNTAX);
+
+		}
+
+		Function f = new Function(progIdx, -1, params);
+
+		functs.put(fName, f);
+		vars.push(new TreeMap<String, Object>());
+		commands.push(f);
+
+		nextEnd();
+		nextItem(); // should be EOL
+	}
+
+	private void execFunct() throws InterpreterException {
+		debug("Execute Function");
+
+		Function f = functs.get(item);
+
+		nextItem();
+		if (!item.equals("(")) {
+			handleErr(UNBALPARENS);
 			return;
 		}
 
-		commands.push(loop); // add to stack
+		nextItem();
+
+		TreeMap<String, Object> newVars = new TreeMap<String, Object>();
+
+		int i = 0;
+
+		if (!item.equals(")")) {
+			newVars.put(f.params.get(i++), 
+					evaluate());
+			while (item.equals(",")) {
+				nextItem();
+				newVars.put(f.params.get(i++), evaluate());
+			}
+
+			if (f.params.size() < i) {
+				handleErr(TOOMANYPARAMS);
+			}
+
+			if (!item.equals(")")) {
+				handleErr(UNBALPARENS);
+				return;
+			}
+		}
+
+		f.backLoc = progIdx;
+		vars.push(newVars);
+		commands.push(f);
+
+		progIdx = f.loc;
+
+		nextItem();
+	}
+
+	private Object execReturn() throws InterpreterException {
+		debug("Return");
+		// TODO
+		return null;
 	}
 
 	private void endComm() throws InterpreterException {
@@ -574,6 +684,7 @@ class Edit {
 		switch (p.comm) {
 		case IF:
 			nextItem();
+			vars.pop();
 			commands.pop();
 			return;
 		case FOR:
@@ -582,7 +693,7 @@ class Edit {
 			if (f.loc > 0) {
 				progIdx = f.itLoc;
 				nextItem();
-				vars.put(f.vName, (double) evaluate());
+				vars.peek().put(f.vName, (double) evaluate());
 				progIdx = f.expLoc;
 				nextItem();
 
@@ -590,17 +701,17 @@ class Edit {
 					progIdx = f.loc;
 					progLine = f.line;
 				} else {
+					vars.pop();
 					commands.pop();
 					progIdx = loc;
 				}
-				nextItem();
-				return;
 			} else {
+				vars.pop();
 				commands.pop();
-				progIdx = loc;
-				nextItem();
-				return;
 			}
+			nextItem();
+			return;
+
 		case WHILE:
 			loc = progIdx;
 			WhileLoop w = (WhileLoop) p;
@@ -612,17 +723,29 @@ class Edit {
 					progIdx = w.loc;
 					progLine = w.line;
 				} else {
+					vars.pop();
 					commands.pop();
 					progIdx = loc;
 				}
-				nextItem();
-				return;
 			} else {
+				vars.pop();
 				commands.pop();
-				progIdx = loc;
-				nextItem();
-				return;
 			}
+			nextItem();
+			return;
+		case FUNCTION:
+			loc = progIdx;
+			Function funct = (Function) p;
+			if (funct.backLoc > 0) {
+				progIdx = funct.backLoc;
+				vars.pop();
+				commands.pop();
+			} else {
+				vars.pop();
+				commands.pop();
+			}
+			nextItem();
+			return;
 		}
 	}
 
@@ -668,14 +791,6 @@ class Edit {
 	private boolean nextItem() throws InterpreterException {
 		boolean result = getNext();
 		debug(new String[] { "Item: " + item, "CommStack: " + commands });
-		// "ItemType: " + itemType, "CommType: " + commType,
-
-		// try {
-		// if (debug)
-		// Thread.sleep(500);
-		// } catch (InterruptedException e) {
-		// e.printStackTrace();
-		// }
 
 		return result;
 	}
@@ -710,6 +825,18 @@ class Edit {
 
 		// Check for char values
 		ch = prog[progIdx];
+
+		// Check for comment tag
+
+		if (ch == '#') {
+			while (progIdx < prog.length && prog[progIdx] != '\r')
+				progIdx++;
+			progIdx += 2;
+			itemType = EOL;
+			item = " ";
+			progLine++;
+			return true;
+		}
 
 		// Reletional operators
 		if (ch == '<' || ch == '>' || ch == '=') {
@@ -1153,7 +1280,7 @@ class Edit {
 	//
 
 	private boolean isDelim(char c) {
-		if ((" \r,<>+-/*%^=();".indexOf(c) != -1))
+		if ((" \r,<>+-/*%^=();#".indexOf(c) != -1))
 			return true;
 		return false;
 	}
@@ -1204,14 +1331,15 @@ class Edit {
 		str = str.toLowerCase();
 
 		// Variable
-		if (vars.containsKey(str)) {
-			return VARIABLE;
+		for (TreeMap<String, Object> tm : vars) {
+			if (tm.containsKey(str)) {
+				return VARIABLE;
+			}
 		}
 
 		// Function
-		for (i = 0; i < functs.size(); i++) {
-			if (functs.get(i).name.equals(str))
-				return FUNCTION;
+		if (functs.containsKey(str)) {
+			return FUNCT;
 		}
 
 		// Bool Op
@@ -1253,7 +1381,7 @@ class Edit {
 
 		// check if next is number or string
 
-		vars.put(var, evaluate());
+		vars.peek().put(var, evaluate());
 	}
 
 	// Value Type must be handled when calling!!
@@ -1263,8 +1391,20 @@ class Edit {
 			return 0;
 		}
 
-		debug("Get var: " + vars.get(vname));
-		return vars.get(vname); // return Object
+		Object o = null;
+
+		for (TreeMap<String, Object> tm : vars) {
+			if (tm.containsKey(vname)) {
+				o = tm.get(vname);
+			}
+		}
+
+		if (o == null) {
+			handleErr(NOTAVAR);
+		}
+
+		debug("Get var: " + o);
+		return o; // return Object
 	}
 
 	//

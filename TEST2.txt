@@ -14,8 +14,6 @@ else
 	end
 end
 
-print "got here 1"
-
 if true then
 	if true then
 		print 1
@@ -29,8 +27,6 @@ else
 		print 4
 	end
 end
-
-print "got here 2"
 
 if true then
 	if false then
@@ -46,8 +42,6 @@ else
 	end
 end
 
-print "got here 3"
-
 if true then
 	if false then
 		print 1
@@ -62,8 +56,6 @@ else
 	end
 end
 
-print "got here 4"
-
 if false then
 	if true then
 		print 1
@@ -77,8 +69,6 @@ else
 		print 4
 	end
 end
-
-print "got here 5"
 
 if false then
 	if true then
@@ -94,8 +84,6 @@ else
 	end
 end
 
-print "got here 6"
-
 if false then
 	if false then
 		print 1
@@ -110,8 +98,6 @@ else
 	end
 end
 
-print "got here 7"
-
 if false then
 	if false then
 		print 1
@@ -125,5 +111,3 @@ else
 		print 4
 	end
 end
-
-print "got here 8"

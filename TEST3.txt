@@ -4,12 +4,10 @@ print
 
 x = 4
 
-while x < 0 do
+while x > 0 do
 	print x
 	x = x - 1
 end
-
-print
 
 for i = 0, i < 2, i + 1 do
 	for j = 0, j < 2, j + 1 do

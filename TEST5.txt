@@ -1,0 +1,11 @@
+function xyz(x , y) do
+	for i = x, i < y, i + 1 do
+		print i
+	end
+end
+
+# this will be ignore
+
+xyz(5 , 6) # so will this
+print
+xyz(2 , 11) # and thiss
