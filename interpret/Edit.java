@@ -9,38 +9,9 @@ import java.util.ArrayList;
 import java.util.Stack;
 import java.util.TreeMap;
 
-// Variables aren't local
-
 class Edit {
 
 	final int MAX_PROG_SIZE = 100000;
-
-	boolean debug = true;
-	final boolean DEBUG_E = false;
-
-	private void debug(String s) {
-		if (debug) {
-			if (commands != null) {
-				for (int i = 0; i < commands.size(); i++)
-					System.out.print("\t");
-			}
-			System.out.println("> " + s);
-			System.out.println();
-		}
-	}
-
-	private void debug(String[] strs) {
-		if (debug) {
-			String str = "";
-			if (commands != null) {
-				for (int i = 0; i < commands.size(); i++)
-					str += "\t";
-			}
-			for (String s : strs)
-				System.out.println(str + s);
-			System.out.println();
-		}
-	}
 
 	// Item types
 	final int NONE = 0; // Don't know
@@ -199,6 +170,33 @@ class Edit {
 		}
 	}
 
+	boolean debug = true;
+	final boolean DEBUG_E = false;
+
+	private void debug(String s) {
+		if (debug) {
+			if (commands != null) {
+				for (int i = 0; i < commands.size(); i++)
+					System.out.print("\t");
+			}
+			System.out.println("> " + s);
+			System.out.println();
+		}
+	}
+
+	private void debug(String[] strs) {
+		if (debug) {
+			String str = "";
+			if (commands != null) {
+				for (int i = 0; i < commands.size(); i++)
+					str += "\t";
+			}
+			for (String s : strs)
+				System.out.println(str + s);
+			System.out.println();
+		}
+	}
+
 	// Constructor for Edit
 	public Edit(String progname) throws InterpreterException {
 
@@ -264,7 +262,7 @@ class Edit {
 	}
 
 	// Let's go! (Runs code)
-	private void runCode() throws InterpreterException {
+	private Object runCode() throws InterpreterException {
 		debug("Starting program...");
 
 		// Runs until
@@ -273,13 +271,15 @@ class Edit {
 			// Not exisiting funct or var, so new var
 			switch (itemType) {
 			case VARIABLE:
+				if (item.equals("getNum"))
+					System.out.println("dafuq");
 				assignVar();
 				break;
 			case FUNCT:
 				execFunct();
+				nextItem();
 				break;
 			case COMMAND:
-				debug("> Command:" + commType);
 				switch (commType) {
 				case PRINT:
 					print();
@@ -294,14 +294,19 @@ class Edit {
 					execFor();
 					break;
 				case END:
-					endComm();
+					if (endComm(false)) {
+						return null;
+					}
 					break;
 				case WHILE:
 					execWhile();
 					break;
 				case RETURN:
-					execReturn();
-					break;
+					debug("Returning");
+					nextItem();
+					Object o = evaluate();
+					endComm(true);
+					return o;
 				case FUNCTION:
 					newFunction();
 					break;
@@ -310,7 +315,7 @@ class Edit {
 					break;
 				}
 
-				debug("> Done with command");
+				debug("Done with command");
 				break;
 			}
 
@@ -319,6 +324,7 @@ class Edit {
 				handleErr(UNEXPITEM);
 			}
 		}
+		return null;
 	}
 
 	// simple print command
@@ -617,7 +623,7 @@ class Edit {
 
 		Function f = new Function(progIdx, -1, params);
 
-		functs.put(fName, f);
+		functs.put(fName.toLowerCase(), f);
 		vars.push(new TreeMap<String, Object>());
 		commands.push(f);
 
@@ -625,15 +631,15 @@ class Edit {
 		nextItem(); // should be EOL
 	}
 
-	private void execFunct() throws InterpreterException {
+	private Object execFunct() throws InterpreterException {
 		debug("Execute Function");
 
-		Function f = functs.get(item);
+		Function f = functs.get(item.toLowerCase());
 
 		nextItem();
 		if (!item.equals("(")) {
 			handleErr(UNBALPARENS);
-			return;
+			return null;
 		}
 
 		nextItem();
@@ -643,8 +649,7 @@ class Edit {
 		int i = 0;
 
 		if (!item.equals(")")) {
-			newVars.put(f.params.get(i++), 
-					evaluate());
+			newVars.put(f.params.get(i++), evaluate());
 			while (item.equals(",")) {
 				nextItem();
 				newVars.put(f.params.get(i++), evaluate());
@@ -656,7 +661,7 @@ class Edit {
 
 			if (!item.equals(")")) {
 				handleErr(UNBALPARENS);
-				return;
+				return null;
 			}
 		}
 
@@ -666,17 +671,18 @@ class Edit {
 
 		progIdx = f.loc;
 
-		nextItem();
+		return runCode();
 	}
 
-	private Object execReturn() throws InterpreterException {
-		debug("Return");
-		// TODO
-		return null;
-	}
-
-	private void endComm() throws InterpreterException {
+	private boolean endComm(boolean force) throws InterpreterException {
 		debug("End Command");
+		
+		if(force){
+			while (commands.peek().comm!=FUNCTION){
+				commands.pop();
+			}
+		}
+		
 		Command p = commands.peek();
 		if (p == null) {
 			handleErr(SYNTAX);
@@ -684,9 +690,9 @@ class Edit {
 		switch (p.comm) {
 		case IF:
 			nextItem();
-			vars.pop();
+			passBack();
 			commands.pop();
-			return;
+			return false;
 		case FOR:
 			int loc = progIdx;
 			ForLoop f = (ForLoop) p;
@@ -701,16 +707,16 @@ class Edit {
 					progIdx = f.loc;
 					progLine = f.line;
 				} else {
-					vars.pop();
+					passBack();
 					commands.pop();
 					progIdx = loc;
 				}
 			} else {
-				vars.pop();
+				passBack();
 				commands.pop();
 			}
 			nextItem();
-			return;
+			return false;
 
 		case WHILE:
 			loc = progIdx;
@@ -723,30 +729,29 @@ class Edit {
 					progIdx = w.loc;
 					progLine = w.line;
 				} else {
-					vars.pop();
+					passBack();
 					commands.pop();
 					progIdx = loc;
 				}
 			} else {
-				vars.pop();
+				passBack();
 				commands.pop();
 			}
 			nextItem();
-			return;
+			return false;
 		case FUNCTION:
 			loc = progIdx;
 			Function funct = (Function) p;
 			if (funct.backLoc > 0) {
 				progIdx = funct.backLoc;
-				vars.pop();
-				commands.pop();
-			} else {
-				vars.pop();
-				commands.pop();
 			}
-			nextItem();
-			return;
+			passBack();
+			commands.pop();
+
+			// nextItem();
+			return true;
 		}
+		return false;
 	}
 
 	// Get next End, used to skip functions
@@ -776,7 +781,7 @@ class Edit {
 			return;
 		}
 
-		endComm();
+		endComm(false);
 	}
 
 	//
@@ -790,7 +795,8 @@ class Edit {
 	// Obtain next item, returns false if EOP
 	private boolean nextItem() throws InterpreterException {
 		boolean result = getNext();
-		debug(new String[] { "Item: " + item, "CommStack: " + commands });
+		debug(new String[] { "Item: " + item, "CommStack: " + commands,
+				"Type: " + itemType });
 
 		return result;
 	}
@@ -827,9 +833,9 @@ class Edit {
 		ch = prog[progIdx];
 
 		// Check for comment tag
-
 		if (ch == '#') {
 			while (progIdx < prog.length && prog[progIdx] != '\r')
+				// ignore line
 				progIdx++;
 			progIdx += 2;
 			itemType = EOL;
@@ -941,6 +947,8 @@ class Edit {
 
 		// Parse and evaluate the expression.
 		result = evalExp1();
+
+		debug("Evaluated: " + result);
 
 		return result;
 	}
@@ -1246,6 +1254,8 @@ class Edit {
 	// Get the value of a number or variable.
 	private Object atom() throws InterpreterException {
 		switch (itemType) {
+		case FUNCT:
+			return execFunct();
 		case NUMBER:
 			try {
 				return Double.parseDouble(item);
@@ -1266,9 +1276,9 @@ class Edit {
 			return toBoolean(item);
 		case STRING:
 			return item;
+		default:
+			return null;
 		}
-		handleErr(SYNTAX);
-		return null;
 	}
 
 	//
@@ -1382,6 +1392,16 @@ class Edit {
 		// check if next is number or string
 
 		vars.peek().put(var, evaluate());
+	}
+
+	private void passBack() {
+		TreeMap<String, Object> tvars = vars.pop();
+
+		for (String str : tvars.keySet()) {
+			if (vars.peek().containsKey(str)) {
+				vars.peek().put(str, tvars.get(str));
+			}
+		}
 	}
 
 	// Value Type must be handled when calling!!

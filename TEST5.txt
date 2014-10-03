@@ -4,8 +4,26 @@ function xyz(x , y) do
 	end
 end
 
-# this will be ignore
+function getNum(x) do
+	return x + 1
+end
 
-xyz(5 , 6) # so will this
+function test() do
+	while true do
+		print "only once?"
+		return
+		print  "uhh"
+	end
+end
+
+# this will be ignored
+
+xyz(5 , 8) # so will this
 print
-xyz(2 , 11) # and thiss
+xyz(2 , 11) # and this
+
+print
+
+print getNum(5) + getNum(6)
+
+test()

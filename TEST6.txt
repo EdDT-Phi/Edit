@@ -1,0 +1,22 @@
+print "this tests local variables"
+print
+
+x = 5
+
+print x
+
+if true then
+	x =  x + 1
+	if true then
+		x = x + 1
+	end
+	print x
+end
+
+print x
+
+x = x + 1
+
+print x
+
+print y
