@@ -13,9 +13,22 @@ This is currently the extent of it's functionality:
 print "this tests the evaluator"
 
 function ending(x) do
-	while x < 0 do
-		print "This will print at the end x times"
-		x = x + 1
+	x = plusOne(x)
+	while x > 0 do
+		print "This will print at the end x + 1 times"
+		x = x - 1
+	end
+end
+
+function plusOne(x) do
+	while true do
+		
+		return x + 1
+
+		print "This is unreachable code"
+	end
+	if not false then
+		print "This is also unreachable"
 	end
 end
 
@@ -38,6 +51,8 @@ print true xor false
 print not true
 
 print
+
+#This will be ignored
 
 print "This is a" , "comma."
 print "This is a" ; "semi-colon."
@@ -74,6 +89,8 @@ else
 	end
 end
 
+print
+
 ending(x)
 
 #This will be ignored
@@ -82,8 +99,6 @@ ending(x)
 ## OUTPUT
 
 ```
-this tests the evaluator
-
 This will print
 false
 true
@@ -113,9 +128,9 @@ false
 3.0
 4.0
 
-This will print at the end x times
-This will print at the end x times
-This will print at the end x times
-This will print at the end x times
-This will print at the end x times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
 ```
