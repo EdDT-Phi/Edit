@@ -1,9 +1,12 @@
 ## ABOUT
+Edit is a scripting language I've developed with syntax similar to a combination of Java, Lua, and Python. Functionality includes call to functions with return values and the ability to evaluate complex expressions. I created it for many reasons including, practice coding, learn about the challenges that developing languages face, extend the functionality to be able to one day use it in an application, and to practice some concepts I've learned in class such as using trees, stacks, and maps.
 
-Edit is a scripting language in progress. Use EditDemo.java to test.
+Use EditDemo.java to run
+
+## Upcoming
+Making the language objective is the next step I want to take. It shouldn't be too hard considering that I learned how to keep separate functions on different stacks with their own maps of variables and values. The way I plan to achieve this is to parse all the necessary files before the program executes and storing it in a map, and when a new Object is created, a new instance of that compilation would be added to the current program stack. This works great because each pared file can store its own values for variables and return values when it's functions are called.
 
 ## INPUT
-
 This is currently the extent of it's functionality:
 
 ```
