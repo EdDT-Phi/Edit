@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Edit : Edit Scripting Language">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Edit</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/EdDT-Phi/Edit">View on GitHub</a>
+
+          <h1 id="project_title">Edit</h1>
+          <h2 id="project_tagline">Edit Scripting Language</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/EdDT-Phi/Edit/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/EdDT-Phi/Edit/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h2>
+<a id="about" class="anchor" href="#about" aria-hidden="true"><span class="octicon octicon-link"></span></a>ABOUT</h2>
+
+<p>Edit is a scripting language I've developed with syntax similar to a combination of Java, Lua, and Python. Functionality includes call to functions with return values and the ability to evaluate complex expressions. I created it for many reasons including, practice coding, learn about the challenges that developing languages face, extend the functionality to be able to one day use it in an application, and to practice some concepts I've learned in class such as using trees, stacks, and maps.</p>
+
+<p>Use EditDemo.java to run</p>
+
+<h2>
+<a id="upcoming" class="anchor" href="#upcoming" aria-hidden="true"><span class="octicon octicon-link"></span></a>Upcoming</h2>
+
+<p>Making the language objective is the next step I want to take. It shouldn't be too hard considering that I learned how to keep separate functions on different stacks with their own maps of variables and values. The way I plan to achieve this is to parse all the necessary files before the program executes and storing it in a map, and when a new Object is created, a new instance of that compilation would be added to the current program stack. This works great because each pared file can store its own values for variables and return values when it's functions are called.</p>
+
+<h2>
+<a id="input" class="anchor" href="#input" aria-hidden="true"><span class="octicon octicon-link"></span></a>INPUT</h2>
+
+<p>This is currently the extent of it's functionality:</p>
+
+<pre><code>
+#This will be ignored
+
+print "this tests the evaluator"
+
+function ending(x) do
+    x = plusOne(x)
+    while x &gt; 0 do
+        print "This will print at the end x + 1 times"
+        x = x - 1
+    end
+end
+
+function plusOne(x) do
+    while true do
+
+        return x + 1
+
+        print "This is unreachable code"
+    end
+    if not false then
+        print "This is also unreachable"
+    end
+end
+
+print #This will be ignored
+
+x = 6
+
+if x &lt; 4 then
+    print "This won't print"
+else if x == 5 then
+    print "This won't print either" 
+else
+    print "This will print" #This will be ignored
+end
+
+print true and false
+print true or false
+print true xand false
+print true xor false
+print not true
+
+print
+
+#This will be ignored
+
+print "This is a" , "comma."
+print "This is a" ; "semi-colon."
+
+print
+
+input "Pick a val for x: ", x
+
+print
+
+print 2 + x * -2
+print 2 - x / 2
+print x ^ 3 % 7
+print "hello" + " " + "world"
+
+print
+
+print 2 &gt; x or false
+print 2 &lt; x or false
+print 2 &lt;= x and true
+print 2 &gt;= x and true
+print 2 == x and true
+
+print
+
+if x &gt; 0 then
+    for i = 0, i &lt; x, i + 1 do
+        print i
+    end
+else
+    while x &lt; 0 do
+        print x
+        x = x + 1
+    end
+end
+
+print
+
+ending(x)
+
+#This will be ignored
+</code></pre>
+
+<h2>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>OUTPUT</h2>
+
+<pre><code>This will print
+false
+true
+false
+true
+false
+
+This is a comma.
+This is a       semi-colon.
+
+Pick a val for x: 5
+
+-8.0
+-0.5
+6.0
+hello world
+
+false
+true
+true
+false
+false
+
+0.0
+1.0
+2.0
+3.0
+4.0
+
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+This will print at the end x + 1 times
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Edit maintained by <a href="https://github.com/EdDT-Phi">EdDT-Phi</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
